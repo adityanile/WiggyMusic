@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 
 public class NoteManager : MonoBehaviour
@@ -30,9 +31,18 @@ public class NoteManager : MonoBehaviour
 
     public float collisionOffset = 0.5f;
 
+    // Touch Controls
+    private Vector3 fp;
+    private Vector3 lp;
+    private float dragDistance;
+
+    private MusicDrawer drwr;
+
     // Start is called before the first frame update
     void Start()
     {
+        dragDistance = Screen.height * 15 / 100;
+
         startPos = transform.position;
 
         line = GetComponent<LineRenderer>();
@@ -40,10 +50,14 @@ public class NoteManager : MonoBehaviour
 
         audioSource = GetComponent<AudioSource>();
 
-        prevPos = transform.position;
-        prevPos.z = zOffset;
-        line.positionCount = 1;
+        fp = Input.GetTouch(0).position;
+        lp = Input.GetTouch(0).position;
 
+        prevPos = GetWorldPositionOnPlane(lp, zOffset);
+        
+        line.positionCount = 1;
+        line.SetPosition(0, prevPos);
+        
         draw = true;
     }
 
@@ -52,39 +66,47 @@ public class NoteManager : MonoBehaviour
     {
         if (draw)
         {
-            Vector3 pos = new Vector3(Input.mousePosition.x, Input.mousePosition.y, zOffset);
-            Vector3 currPos = Camera.main.ScreenToWorldPoint(pos);
-            currPos.z = zOffset;
-
-
-            if (Vector3.Distance(prevPos, currPos) > minDist)
+            if (Input.touchCount == 1)
             {
-                if (prevPos == transform.position)
+                Touch touch = Input.GetTouch(0);
+
+                if (touch.phase == TouchPhase.Moved)
                 {
-                    line.SetPosition(0, prevPos);
-                }
-                else
-                {
+                    lp = touch.position;
+                    prevPos = GetWorldPositionOnPlane(lp, zOffset);
+
                     line.positionCount++;
-                    line.SetPosition(line.positionCount - 1, currPos);
+                    line.SetPosition(line.positionCount - 1, prevPos);
                 }
-                prevPos = currPos;
+                else if (touch.phase == TouchPhase.Ended)
+                {
+                    lp = touch.position;
+
+                    if (line.positionCount < 2)
+                        Destroy(gameObject);
+
+                    SetColliders();
+
+                    if (!played)
+                    {
+                        played = true;
+
+                        AllocateSound();
+                        PlaySound();
+                    }
+                    draw = false;
+                }
             }
         }
+    }
 
-        if (Input.GetMouseButtonUp(0))
-        {
-            draw = false;
-            SetColliders();
-
-            if (!played)
-            {
-                played = true;
-
-                AllocateSound();
-                PlaySound();
-            }
-        }
+    public Vector3 GetWorldPositionOnPlane(Vector3 screenPosition, float z)
+    {
+        Ray ray = Camera.main.ScreenPointToRay(screenPosition);
+        Plane xy = new Plane(Vector3.forward, new Vector3(0, 0, z));
+        float distance;
+        xy.Raycast(ray, out distance);
+        return ray.GetPoint(distance);
     }
 
     bool CheckIfEnclossed()
@@ -115,7 +137,7 @@ public class NoteManager : MonoBehaviour
 
     void AllocateSound()
     {
-        MusicDrawer drwr = transform.parent.GetComponent<MusicDrawer>();
+        drwr = transform.parent.GetComponent<MusicDrawer>();
 
         if (CheckIfEnclossed())
         {
@@ -153,9 +175,7 @@ public class NoteManager : MonoBehaviour
     public void PlaySound()
     {
         audioSource.PlayOneShot(clip, 1);
-
     }
-
     void SetColliders()
     {
         List<Vector2> points = new List<Vector2>();
@@ -169,11 +189,15 @@ public class NoteManager : MonoBehaviour
         }
         edgeCollider.SetPoints(points);
     }
-
     private void OnMouseDown()
     {
+        drwr.spawnNote = false;
         PlaySound();
     }
 
+    private void OnMouseUp()
+    {
+        drwr.spawnNote = true;
+    }
 
 }

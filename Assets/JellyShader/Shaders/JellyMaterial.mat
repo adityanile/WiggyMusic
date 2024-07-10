@@ -29,7 +29,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Amplitude: 0.65
+    - _Amplitude: 0.7
     - _ControlTime: 0
     - _Frequency: 10
     - _Glossiness: 0.5

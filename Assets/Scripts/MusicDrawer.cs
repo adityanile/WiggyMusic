@@ -19,49 +19,43 @@ public class MusicDrawer : MonoBehaviour
     public float zOffset = -0.1f;
 
     public float offset = 0.1f;
-    private bool spawnNote = false;
+    public bool spawnNote = true;
 
-    Vector3 prevPos;
-    Ray ray;
+    // Touch Controls
+    private Vector3 lp;
 
     void Update()
     {
-        if (Input.GetMouseButtonDown(0))
+        if (Input.touchCount == 1)
         {
-            spawnNote = true;
+            Touch touch = Input.GetTouch(0); // get the touch
 
-            Vector3 pos = new Vector3(Input.mousePosition.x, Input.mousePosition.y, zOffset);
-            prevPos = Camera.main.ScreenToWorldPoint(pos);
-            prevPos.z = zOffset;
-        }
-
-
-        if (spawnNote)
-        {
-            if (Input.GetMouseButton(0))
+            if (touch.phase == TouchPhase.Began) //check for the first touch
             {
-                Vector3 pos = new Vector3(Input.mousePosition.x, Input.mousePosition.y, zOffset);
-                Vector3 currPos = Camera.main.ScreenToWorldPoint(pos);
-                currPos.z = zOffset;
+                lp = touch.position;
 
-                float dist = Vector3.Distance(prevPos, currPos);
-
-                if (dist > offset)
+                if (spawnNote)
                 {
-                    spawnNote = false;
-
-                    GameObject inst = Instantiate(note, prevPos, Quaternion.identity, gameObject.transform);
+                    Vector3 pos = GetWorldPositionOnPlane(lp, zOffset);
+                    GameObject inst = Instantiate(note, pos, Quaternion.identity, gameObject.transform);
                     inst.name = count.ToString();
                     inst.AddComponent<JellyClickReceiver>();
                     allNotes.Add(inst);
 
                     count++;
                 }
-
-                prevPos = currPos;
             }
-        }
+        }   
     }
 
+    public Vector3 GetWorldPositionOnPlane(Vector3 screenPosition, float z)
+    {
+        Ray ray = Camera.main.ScreenPointToRay(screenPosition);
+        Plane xy = new Plane(Vector3.forward, new Vector3(0, 0, z));
+        float distance;
+        xy.Raycast(ray, out distance);
+
+        return ray.GetPoint(distance);
+    }
 
 }
